@@ -18,7 +18,7 @@ def test_root():
 
 def test_dashboard_stats():
     print("Testing /api/dashboard/stats endpoint...")
-    response = client.get("/api/dashboard/stats", headers={"Origin": "http://localhost:3000"})
+    response = client.get("/api/dashboard/stats", headers={"Origin": "http://localhost:3000", "X-API-Key": "default_client_key_12345"})
     
     # Verify status code
     assert response.status_code == 200

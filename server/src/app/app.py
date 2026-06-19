@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 import os
 import sys
@@ -7,8 +7,13 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from serving.inference import predict  # our single source of truth for inference
+from app.auth import verify_api_key, load_keys_data
 
 app = FastAPI()
+
+@app.on_event("startup")
+def startup_event():
+    load_keys_data()
 
 @app.get("/")
 def root():
@@ -36,7 +41,7 @@ class CustomerData(BaseModel):
     TotalCharges: float
 
 @app.post("/predict")
-def api_predict(data: CustomerData):
+def api_predict(data: CustomerData, _auth: dict = Depends(verify_api_key)):
     try:
         out = predict(data.dict())
         return out

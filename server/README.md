@@ -186,6 +186,57 @@ The endpoint is now exposed on port `8000`. You can perform predictions by query
 
 ---
 
+## 🔒 API Key Authentication & Management
+
+To secure production deployments, access to the prediction and dashboard statistics endpoints requires a valid API key.
+
+### Configuration Settings
+You can customize the authorization layer using environment variables (or by placing them in a `.env` file at the project root):
+- `ENABLE_API_KEY_AUTH`: Enable/disable authentication check (boolean: `true`/`false`, default: `true`).
+- `ADMIN_API_KEY`: Sets a custom Master Admin Key. If not set, a persistent random admin key will be auto-generated inside `data/api_keys.json`.
+- `API_KEYS_FILE_PATH`: Set custom path for the database storage of client API keys (default: `data/api_keys.json`).
+
+### Authorization Headers
+Clients must supply the API key in requests using one of the following formats:
+- **Header:** `X-API-Key: YOUR_API_KEY`
+- **Bearer Token:** `Authorization: Bearer YOUR_API_KEY`
+
+### Administrative Key Management Endpoints
+Admin endpoints require verification against the master admin key.
+
+#### 1. List Keys
+- **URL:** `GET /api/admin/keys`
+- **Description:** Retrieve all registered API keys and metadata (owners, statuses, created dates).
+
+#### 2. Create Key
+- **URL:** `POST /api/admin/keys`
+- **Description:** Register a new client key. If the `key` field is omitted, a random secure token is generated automatically.
+- **Request Body:**
+  ```json
+  {
+    "owner": "Client Name",
+    "key": "optional_custom_key_string",
+    "is_active": true
+  }
+  ```
+
+#### 3. Update Key
+- **URL:** `PATCH /api/admin/keys/{key_value}`
+- **Description:** Modify owner details or toggle the active status of a key.
+- **Request Body:**
+  ```json
+  {
+    "owner": "New Client Name",
+    "is_active": false
+  }
+  ```
+
+#### 4. Revoke Key
+- **URL:** `DELETE /api/admin/keys/{key_value}`
+- **Description:** Permanently delete/revoke an API key.
+
+---
+
 ## 🔌 API Endpoints Documentation
 
 ### 1. Health Check
@@ -200,6 +251,7 @@ The endpoint is now exposed on port `8000`. You can perform predictions by query
 
 ### 2. Predict Churn
 *   **URL:** `POST /predict`
+*   **Access:** Protected (Requires `X-API-Key` or Bearer Token)
 *   **Description:** Returns churn prediction binary statement and feature attribution values (SHAP).
 *   **Request Schema (`CustomerData`):**
     ```json
@@ -241,6 +293,7 @@ The endpoint is now exposed on port `8000`. You can perform predictions by query
 
 ### 3. Dashboard Statistics
 *   **URL:** `GET /api/dashboard/stats`
+*   **Access:** Protected (Requires `X-API-Key` or Bearer Token)
 *   **Description:** Serves comprehensive demographic and subscription metrics for analytical dashboards.
 *   **Response Schema (Truncated Sample):**
     ```json

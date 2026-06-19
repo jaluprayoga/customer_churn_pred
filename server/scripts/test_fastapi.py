@@ -24,7 +24,7 @@ sample_data = {
     "TotalCharges": 350.75
 }
 
-response = requests.post(url, json=sample_data)
+response = requests.post(url, json=sample_data, headers={"X-API-Key": "default_client_key_12345"})
 print("Status Code:", response.status_code)
 resp_json = response.json()
 print("Response keys:", list(resp_json.keys()))

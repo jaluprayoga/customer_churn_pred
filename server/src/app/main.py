@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import pandas as pd
 from src.serving.inference import predict  # Core ML inference logic
+from src.app.auth import verify_api_key, admin_router, load_keys_data
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -11,6 +12,14 @@ app = FastAPI(
     description="ML API for predicting customer churn in telecom industry",
     version="1.0.0"
 )
+
+# Initialize keys storage on startup
+@app.on_event("startup")
+def startup_event():
+    load_keys_data()
+
+# Register admin key management router
+app.include_router(admin_router)
 
 # Enable CORS for cross-origin frontend consumption
 app.add_middleware(
@@ -68,7 +77,7 @@ class CustomerData(BaseModel):
 
 # === MAIN PREDICTION API ENDPOINT ===
 @app.post("/predict")
-def get_prediction(data: CustomerData):
+def get_prediction(data: CustomerData, _auth: dict = Depends(verify_api_key)):
     """
     Main prediction endpoint for customer churn prediction.
     
@@ -119,7 +128,7 @@ def get_dashboard_data() -> pd.DataFrame:
 
 
 @app.get("/api/dashboard/stats")
-def get_dashboard_stats():
+def get_dashboard_stats(_auth: dict = Depends(verify_api_key)):
     """
     Computes statistical and plotting data for the customer churn dashboard.
     """

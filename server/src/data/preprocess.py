@@ -86,6 +86,22 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
         'PaymentMethod'
     ]
 
+    # Predefine categorical categories to guarantee consistent dummy columns during serving
+    categorical_defs = {
+        'MultipleLines': ['No', 'No phone service', 'Yes'],
+        'InternetService': ['DSL', 'Fiber optic', 'No'],
+        'Contract': ['Month-to-month', 'One year', 'Two year'],
+        'PaymentMethod': [
+            'Bank transfer (automatic)', 
+            'Credit card (automatic)', 
+            'Electronic check', 
+            'Mailed check'
+        ]
+    }
+    for col, categories in categorical_defs.items():
+        if col in df.columns:
+            df[col] = pd.Categorical(df[col], categories=categories)
+
     df = pd.get_dummies(df, columns=multi_cat_cols, drop_first=True)
 
     # Drop redundant PhoneService feature

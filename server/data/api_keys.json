@@ -1,0 +1,10 @@
+{
+  "admin_key": "RoFloXW7n0Xxe_PTlsdHZQ",
+  "keys": {
+    "default_client_key_12345": {
+      "owner": "Default Client",
+      "is_active": true,
+      "created_at": "2026-06-19T21:02:47.826923"
+    }
+  }
+}

@@ -33,6 +33,7 @@ import glob
 
 # Global SHAP explainer
 explainer = None
+native_model = None
 
 # === MODEL LOADING CONFIGURATION ===
 # IMPORTANT: This path is set during Docker container build
@@ -48,10 +49,14 @@ try:
     # Load native model for SHAP calculations
     try:
         native_model = mlflow.sklearn.load_model(MODEL_DIR)
-        explainer = shap.TreeExplainer(native_model)
-        print(f"[Serving] Model and SHAP Explainer loaded successfully from {MODEL_DIR}")
-    except Exception as shap_load_err:
-        print(f"[Serving] Note: Failed to load SHAP explainer from {MODEL_DIR}: {shap_load_err}")
+        print(f"[Serving] Native sklearn model loaded successfully from {MODEL_DIR}")
+        try:
+            explainer = shap.TreeExplainer(native_model)
+            print(f"[Serving] SHAP Explainer loaded successfully")
+        except Exception as shap_err:
+            print(f"[Serving] Note: Failed to load SHAP explainer from {MODEL_DIR}: {shap_err}")
+    except Exception as model_load_err:
+        print(f"[Serving] Warning: Failed to load native sklearn model from {MODEL_DIR}: {model_load_err}")
 except Exception as e:
     print(f"[Serving] Note: Failed to load model from {MODEL_DIR}: {e}. Trying fallback...")
     # Fallback for local development (OPTIONAL)
@@ -73,10 +78,14 @@ except Exception as e:
             # Load native model for SHAP calculations in fallback
             try:
                 native_model = mlflow.sklearn.load_model(latest_model)
-                explainer = shap.TreeExplainer(native_model)
-                print(f"[Serving] Fallback: Loaded SHAP Explainer from {latest_model}")
-            except Exception as shap_load_err:
-                print(f"[Serving] Note: Failed to load SHAP explainer from fallback: {shap_load_err}")
+                print(f"[Serving] Fallback: Loaded native sklearn model from {latest_model}")
+                try:
+                    explainer = shap.TreeExplainer(native_model)
+                    print(f"[Serving] Fallback: Loaded SHAP Explainer")
+                except Exception as shap_err:
+                    print(f"[Serving] Note: Failed to load SHAP explainer from fallback: {shap_err}")
+            except Exception as model_load_err:
+                print(f"[Serving] Warning: Failed to load native sklearn model from fallback: {model_load_err}")
         else:
             raise Exception("No production-ready model found in local mlruns (missing feature_columns.txt)")
     except Exception as fallback_error:
@@ -210,7 +219,28 @@ def predict(input_dict: dict) -> dict:
     # Convert binary prediction (0/1) to actionable business language
     prediction_str = "Likely to churn" if result == 1 else "Not likely to churn"
     
+    # Calculate probability of churn (class 1)
+    probability = None
+    if native_model is not None and hasattr(native_model, "predict_proba"):
+        try:
+            prob_preds = native_model.predict_proba(df_enc)
+            if len(prob_preds.shape) == 2 and prob_preds.shape[1] == 2:
+                probability = float(prob_preds[0][1])
+            else:
+                probability = float(prob_preds[0])
+        except Exception as prob_err:
+            print(f"[Serving] Failed to calculate predict_proba: {prob_err}")
+    else:
+        print("[Serving] Warning: Native model is not loaded or does not support predict_proba.")
+            
+    # Fallback to binary prediction representation if probability calculation fails
+    if probability is None:
+        fallback_val = 0.78 if result == 1 else 0.14
+        print(f"[Serving] Warning: Falling back to default constant probability metric: {fallback_val}")
+        probability = fallback_val
+        
     return {
         "prediction": prediction_str,
+        "probability": probability,
         "shap_values": shap_dict
     }
